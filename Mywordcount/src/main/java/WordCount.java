@@ -179,46 +179,31 @@ public class WordCount {
         }
     }
 
-    public static class SortFileReducer extends Reducer<IntWritable, Text, Text, NullWritable>{
-        private MultipleOutputs<Text,NullWritable> many;
-
-        protected void setup(Context context) throws IOException,InterruptedException {
-            many = new MultipleOutputs<Text, NullWritable>(context);
-        }
-        protected void cleanup(Context context) throws IOException,InterruptedException {
-            many.close();
-        }
-
-        private Text result = new Text();
-        private HashMap<String, Integer> map = new HashMap<>();
-
-        @Override
-        protected void reduce(IntWritable key, Iterable<Text> values, Context context)
-                throws IOException, InterruptedException{
-            for(Text val: values){
-                String docId = val.toString().split("#")[1];
-                docId = docId.substring(0, docId.length()-4);
-                docId = docId.replaceAll("-", "");
-                String oneWord = val.toString().split("#")[0];
-                int sum = map.values().stream().mapToInt(i->i).sum();
-                if(sum==4000){
-                    break;
-                }
-                int rank = map.getOrDefault(docId, 0);
-                if(rank == 100){
-                    continue;
-                }
-                else {
-                    rank += 1;
-                    map.put(docId, rank);
-                }
-                result.set(oneWord.toString());
-                String str=rank+": "+result+", "+key;
-                many.write(docId, new Text(str), NullWritable.get() );
-            }
-        }
+  public static class SortReducer extends Reducer <SortKey,IntWritable,Text,IntWritable> {
+ 
+    private MultipleOutputs<Text,IntWritable> mos;
+    private IntWritable valueInfo = new IntWritable();
+    private Text keyInfo = new Text();
+    private HashMap<String,Integer> map=new HashMap<>();
+    protected void setup(Context context) throws IOException,InterruptedException{
+         mos = new MultipleOutputs<Text,IntWritable>(context);
+ }
+    protected void cleanup(Context context) throws IOException,InterruptedException{
+        mos.close();
+ }
+    @Override
+    public void reduce(SortKey key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+     String docName=key.y.split("#")[1];
+    int rank=map.getOrDefault(docName,1);
+     if(rank<=100){
+    keyInfo.set(Integer.toString(rank)+":"+key.y.split("#")[0]+", ");
+    valueInfo.set(key.x);
+     rank+=1;
+    map.put(docName,rank);
+    mos.write(docName,keyInfo,valueInfo); 
+     } 
     }
-
+ }
     public static class SortAllReducer extends Reducer<IntWritable, Text, Text, NullWritable>{
         private Text result = new Text();
         int rank=1;
